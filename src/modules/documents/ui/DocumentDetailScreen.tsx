@@ -42,6 +42,8 @@ import {
 } from "../../../shared/payments/payments";
 import { generateDocumentPdf } from "../../../shared/pdf/pdf";
 import { shareDocumentWhatsApp } from "../../../shared/whatsapp/whatsapp";
+import { shouldUseMobilePdfFlow } from "../../../shared/pdf/pdfMobile";
+import { PdfShareModal } from "./PdfShareModal";
 import { ChargesBlock } from "../../charges/ui/ChargesBlock";
 
 function intentClass(intent: ActionIntent): string {
@@ -78,6 +80,7 @@ export function DocumentDetailScreen() {
   const [viewer, setViewer] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [pdfModal, setPdfModal] = useState(false);
 
   async function load() {
     if (!id) return;
@@ -175,6 +178,12 @@ export function DocumentDetailScreen() {
   async function handlePdf() {
     if (!id) return;
     setPdfError(null);
+    // mobile / PWA: modal com Compartilhar/Salvar/Abrir (evita ficar preso no visualizador nativo)
+    if (shouldUseMobilePdfFlow()) {
+      setPdfModal(true);
+      return;
+    }
+    // desktop: mantém a impressão atual
     const { error } = await generateDocumentPdf(id);
     if (error) setPdfError(error);
   }
@@ -482,6 +491,8 @@ export function DocumentDetailScreen() {
           <img className="viewer-img" src={viewer} alt="foto" />
         </div>
       )}
+
+      {pdfModal && <PdfShareModal documentId={doc.id} onClose={() => setPdfModal(false)} />}
     </div>
   );
 }
