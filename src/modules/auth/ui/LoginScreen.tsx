@@ -1,7 +1,7 @@
 // src/modules/auth/ui/LoginScreen.tsx
 // Tela de login. Só apresentação — chama shared/auth, não fala com Supabase diretamente.
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signIn } from "../../../shared/auth/auth";
 
@@ -11,6 +11,15 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // F5: ao surgir um erro, leva o foco e rola suavemente até ele.
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.focus();
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error]);
 
   async function handleSubmit() {
     setError(null);
@@ -31,33 +40,48 @@ export function LoginScreen() {
       <div className="title">Entrar</div>
       <div className="subtitle">Acesse sua conta para continuar</div>
 
-      {error && <div className="error-box">{error}</div>}
+      {error && (
+        <div ref={errorRef} className="error-box" role="alert" tabIndex={-1}>
+          {error}
+        </div>
+      )}
 
-      <div className="field">
-        <label>E-mail</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="voce@exemplo.com"
-          autoCapitalize="none"
-        />
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
+        <div className="field">
+          <label htmlFor="login-email">E-mail</label>
+          <input
+            id="login-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="voce@exemplo.com"
+            autoCapitalize="none"
+            autoFocus
+            enterKeyHint="next"
+          />
+        </div>
 
-      <div className="field">
-        <label>Senha</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
-          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-        />
-      </div>
+        <div className="field">
+          <label htmlFor="login-password">Senha</label>
+          <input
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            enterKeyHint="done"
+          />
+        </div>
 
-      <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
-        {loading ? "Entrando..." : "Entrar"}
-      </button>
+        <button className="btn-primary" type="submit" disabled={loading}>
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
 
       <div className="link-row">
         Não tem conta? <Link to="/signup">Criar conta</Link>

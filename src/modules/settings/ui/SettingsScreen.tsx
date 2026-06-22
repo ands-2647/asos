@@ -34,6 +34,14 @@ export function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.focus();
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error]);
 
   useEffect(() => {
     loadCompanySettings().then(({ data, error }) => {
@@ -116,7 +124,11 @@ export function SettingsScreen() {
         </div>
       </header>
 
-      {error && <div className="error-box">{error}</div>}
+      {error && (
+        <div ref={errorRef} className="error-box" role="alert" tabIndex={-1}>
+          {error}
+        </div>
+      )}
       {ok && <div className="ok-box">Configurações salvas.</div>}
 
       {/* logo */}
@@ -147,45 +159,52 @@ export function SettingsScreen() {
       />
 
       {/* dados */}
-      <div className="section-title">Dados da empresa</div>
-      <div className="field">
-        <label>Nome da empresa</label>
-        <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Nome da empresa" />
-      </div>
-      <div className="field">
-        <label>CNPJ</label>
-        <input value={form.cnpj} onChange={(e) => set("cnpj", e.target.value)} placeholder="00.000.000/0000-00" inputMode="numeric" />
-      </div>
-      <div className="field">
-        <label>Telefone</label>
-        <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="(11) 3000-0000" inputMode="tel" />
-      </div>
-      <div className="field">
-        <label>WhatsApp</label>
-        <input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="(11) 90000-0000" inputMode="tel" />
-      </div>
-      <div className="field">
-        <label>Endereço</label>
-        <input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Rua, número, bairro, cidade" />
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
+      >
+        <div className="section-title">Dados da empresa</div>
+        <div className="field">
+          <label htmlFor="set-name">Nome da empresa</label>
+          <input id="set-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Nome da empresa" autoFocus autoCapitalize="words" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-cnpj">CNPJ</label>
+          <input id="set-cnpj" value={form.cnpj} onChange={(e) => set("cnpj", e.target.value)} placeholder="00.000.000/0000-00" inputMode="numeric" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-phone">Telefone</label>
+          <input id="set-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="(11) 3000-0000" inputMode="tel" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-whatsapp">WhatsApp</label>
+          <input id="set-whatsapp" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="(11) 90000-0000" inputMode="tel" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-address">Endereço</label>
+          <input id="set-address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Rua, número, bairro, cidade" enterKeyHint="next" />
+        </div>
 
-      <div className="section-title">Cobrança e orçamento</div>
-      <div className="field">
-        <label>Chave Pix</label>
-        <input value={form.pixKey} onChange={(e) => set("pixKey", e.target.value)} placeholder="CPF, CNPJ, e-mail, telefone ou aleatória" />
-      </div>
-      <div className="field">
-        <label>Validade padrão do orçamento (dias)</label>
-        <input type="number" min={1} value={form.defaultValidityDays} onChange={(e) => set("defaultValidityDays", e.target.value)} placeholder="15" />
-      </div>
-      <div className="field">
-        <label>Observação padrão</label>
-        <textarea value={form.defaultObservation} onChange={(e) => set("defaultObservation", e.target.value)} placeholder="Texto padrão para orçamentos/OS" />
-      </div>
+        <div className="section-title">Cobrança e orçamento</div>
+        <div className="field">
+          <label htmlFor="set-pix">Chave Pix</label>
+          <input id="set-pix" value={form.pixKey} onChange={(e) => set("pixKey", e.target.value)} placeholder="CPF, CNPJ, e-mail, telefone ou aleatória" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-validity">Validade padrão do orçamento (dias)</label>
+          <input id="set-validity" type="number" min={1} value={form.defaultValidityDays} onChange={(e) => set("defaultValidityDays", e.target.value)} placeholder="15" inputMode="numeric" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-obs">Observação padrão</label>
+          <textarea id="set-obs" value={form.defaultObservation} onChange={(e) => set("defaultObservation", e.target.value)} placeholder="Texto padrão para orçamentos/OS" />
+        </div>
 
-      <button className="btn-primary btn-block" onClick={handleSave} disabled={saving}>
-        {saving ? "Salvando..." : "Salvar configurações"}
-      </button>
+        <button className="btn-primary btn-block" type="submit" disabled={saving}>
+          {saving ? "Salvando..." : "Salvar configurações"}
+        </button>
+      </form>
     </div>
   );
 }

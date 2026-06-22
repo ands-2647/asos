@@ -2,7 +2,7 @@
 // Formulário de cliente, usado tanto para criar quanto para editar.
 // Só apresentação: validação e gravação ficam em shared/clients.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   createClient,
@@ -23,6 +23,14 @@ export function ClientFormScreen({ mode }: { mode: "create" | "edit" }) {
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.focus();
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error]);
 
   useEffect(() => {
     if (mode !== "edit" || !id) return;
@@ -80,63 +88,85 @@ export function ClientFormScreen({ mode }: { mode: "create" | "edit" }) {
       <div className="title">{mode === "edit" ? "Editar cliente" : "Novo cliente"}</div>
       <div className="subtitle">Nome e telefone são obrigatórios.</div>
 
-      {error && <div className="error-box">{error}</div>}
+      {error && (
+        <div ref={errorRef} className="error-box" role="alert" tabIndex={-1}>
+          {error}
+        </div>
+      )}
 
-      <div className="field">
-        <label>Nome</label>
-        <input
-          value={form.name}
-          onChange={(e) => set("name", e.target.value)}
-          placeholder="Nome do cliente"
-        />
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
+        <div className="field">
+          <label htmlFor="client-name">Nome</label>
+          <input
+            id="client-name"
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+            placeholder="Nome do cliente"
+            autoFocus
+            autoCapitalize="words"
+            enterKeyHint="next"
+          />
+        </div>
 
-      <div className="field">
-        <label>Telefone</label>
-        <input
-          value={form.phone}
-          onChange={(e) => set("phone", e.target.value)}
-          placeholder="(11) 90000-0000"
-          inputMode="tel"
-        />
-      </div>
+        <div className="field">
+          <label htmlFor="client-phone">Telefone</label>
+          <input
+            id="client-phone"
+            value={form.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            placeholder="(11) 90000-0000"
+            inputMode="tel"
+            enterKeyHint="next"
+          />
+        </div>
 
-      <div className="field">
-        <label>E-mail</label>
-        <input
-          type="email"
-          value={form.email}
-          onChange={(e) => set("email", e.target.value)}
-          placeholder="cliente@exemplo.com"
-          autoCapitalize="none"
-        />
-        <div className="hint">Opcional</div>
-      </div>
+        <div className="field">
+          <label htmlFor="client-email">E-mail</label>
+          <input
+            id="client-email"
+            type="email"
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+            placeholder="cliente@exemplo.com"
+            autoCapitalize="none"
+            enterKeyHint="next"
+          />
+          <div className="hint">Opcional</div>
+        </div>
 
-      <div className="field">
-        <label>CPF / CNPJ</label>
-        <input
-          value={form.cpfCnpj}
-          onChange={(e) => set("cpfCnpj", e.target.value)}
-          placeholder="000.000.000-00"
-          inputMode="numeric"
-        />
-        <div className="hint">Opcional</div>
-      </div>
+        <div className="field">
+          <label htmlFor="client-cpf">CPF / CNPJ</label>
+          <input
+            id="client-cpf"
+            value={form.cpfCnpj}
+            onChange={(e) => set("cpfCnpj", e.target.value)}
+            placeholder="000.000.000-00"
+            inputMode="numeric"
+            enterKeyHint="next"
+          />
+          <div className="hint">Opcional</div>
+        </div>
 
-      <div className="field">
-        <label>Observações</label>
-        <textarea
-          value={form.notes}
-          onChange={(e) => set("notes", e.target.value)}
-          placeholder="Anotações sobre o cliente"
-        />
-        <div className="hint">Opcional</div>
-      </div>
+        <div className="field">
+          <label htmlFor="client-notes">Observações</label>
+          <textarea
+            id="client-notes"
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="Anotações sobre o cliente"
+          />
+          <div className="hint">Opcional</div>
+        </div>
 
-      <button className="btn-primary btn-block" onClick={handleSubmit} disabled={saving}>
-        {saving ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Cadastrar cliente"}
-      </button>
+        <button className="btn-primary btn-block" type="submit" disabled={saving}>
+          {saving ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Cadastrar cliente"}
+        </button>
+      </form>
 
       {mode === "edit" && (
         <button

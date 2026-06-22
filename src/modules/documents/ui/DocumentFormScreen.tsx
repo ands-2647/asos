@@ -3,7 +3,7 @@
 // serviços, desconto, validade, observação) com total ao vivo. As ações de status e a
 // conversão ficam na tela de detalhe. Só apresentação: lógica em shared/documents.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { listClients, type ClientRow } from "../../../shared/clients/clients";
 import {
@@ -22,6 +22,12 @@ import {
   type DocumentKind,
 } from "../../../shared/documents/documents";
 
+// Impede que o Enter dentro das linhas de itens submeta o formulário (evita salvar/sair
+// no meio da digitação). Os campos principais e o botão Salvar continuam funcionando.
+function blockEnter(e: React.KeyboardEvent) {
+  if (e.key === "Enter") e.preventDefault();
+}
+
 export function DocumentFormScreen({ mode }: { mode: "create" | "edit" }) {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -30,6 +36,14 @@ export function DocumentFormScreen({ mode }: { mode: "create" | "edit" }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.focus();
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error]);
 
   useEffect(() => {
     async function init() {
@@ -139,139 +153,172 @@ export function DocumentFormScreen({ mode }: { mode: "create" | "edit" }) {
 
       <div className="title">{mode === "edit" ? "Editar atendimento" : "Novo atendimento"}</div>
 
-      {error && <div className="error-box">{error}</div>}
-
-      <div className="field">
-        <label>Cliente</label>
-        <select
-          className="select"
-          value={form.clientId}
-          onChange={(e) => setField("clientId", e.target.value)}
-        >
-          <option value="">Selecione…</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="field">
-        <label>Tipo</label>
-        <select
-          className="select"
-          value={form.kind}
-          onChange={(e) => setField("kind", e.target.value as DocumentKind)}
-        >
-          <option value="budget">Orçamento</option>
-          <option value="service_order">Ordem de serviço</option>
-        </select>
-      </div>
-
-      <div className="section-title">Peças</div>
-      {form.items.map((it, idx) => (
-        <div className="line-card" key={idx}>
-          <input
-            placeholder="Descrição da peça"
-            value={it.description}
-            onChange={(e) => setItem(idx, "description", e.target.value)}
-          />
-          <div className="line-grid">
-            <div>
-              <label className="mini-label">Qtd</label>
-              <input
-                inputMode="decimal"
-                value={it.quantity}
-                onChange={(e) => setItem(idx, "quantity", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mini-label">Preço un.</label>
-              <input
-                inputMode="decimal"
-                value={it.unitPrice}
-                onChange={(e) => setItem(idx, "unitPrice", e.target.value)}
-              />
-            </div>
-            <div className="line-sub">
-              <label className="mini-label">Subtotal</label>
-              <div className="line-sub-val">{formatBRL(lineTotal(it))}</div>
-            </div>
-          </div>
-          <button className="link-btn danger" onClick={() => removeItem(idx)}>
-            Remover peça
-          </button>
+      {error && (
+        <div ref={errorRef} className="error-box" role="alert" tabIndex={-1}>
+          {error}
         </div>
-      ))}
-      <button className="btn-secondary btn-block" onClick={addItem}>
-        + Adicionar peça
-      </button>
+      )}
 
-      <div className="section-title">Serviços</div>
-      {form.services.map((sv, idx) => (
-        <div className="line-card" key={idx}>
-          <input
-            placeholder="Descrição do serviço"
-            value={sv.description}
-            onChange={(e) => setService(idx, "description", e.target.value)}
-          />
-          <div className="line-grid">
-            <div>
-              <label className="mini-label">Preço</label>
-              <input
-                inputMode="decimal"
-                value={sv.price}
-                onChange={(e) => setService(idx, "price", e.target.value)}
-              />
-            </div>
-          </div>
-          <button className="link-btn danger" onClick={() => removeService(idx)}>
-            Remover serviço
-          </button>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
+        <div className="field">
+          <label htmlFor="doc-client">Cliente</label>
+          <select
+            id="doc-client"
+            className="select"
+            value={form.clientId}
+            onChange={(e) => setField("clientId", e.target.value)}
+            autoFocus
+          >
+            <option value="">Selecione…</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
-      ))}
-      <button className="btn-secondary btn-block" onClick={addService}>
-        + Adicionar serviço
-      </button>
 
-      <div className="field mt-24">
-        <label>Desconto (R$)</label>
-        <input
-          inputMode="decimal"
-          value={form.discount}
-          onChange={(e) => setField("discount", e.target.value)}
-          placeholder="0"
-        />
-      </div>
+        <div className="field">
+          <label htmlFor="doc-kind">Tipo</label>
+          <select
+            id="doc-kind"
+            className="select"
+            value={form.kind}
+            onChange={(e) => setField("kind", e.target.value as DocumentKind)}
+          >
+            <option value="budget">Orçamento</option>
+            <option value="service_order">Ordem de serviço</option>
+          </select>
+        </div>
 
-      <div className="field">
-        <label>Validade</label>
-        <input
-          type="date"
-          value={form.validUntil}
-          onChange={(e) => setField("validUntil", e.target.value)}
-        />
-        <div className="hint">Opcional</div>
-      </div>
+        <div className="section-title">Peças</div>
+        {form.items.map((it, idx) => (
+          <div className="line-card" key={idx}>
+            <input
+              aria-label={`Descrição da peça ${idx + 1}`}
+              placeholder="Descrição da peça"
+              value={it.description}
+              onChange={(e) => setItem(idx, "description", e.target.value)}
+              onKeyDown={blockEnter}
+              enterKeyHint="next"
+            />
+            <div className="line-grid">
+              <div>
+                <label className="mini-label" htmlFor={`item-${idx}-qty`}>Qtd</label>
+                <input
+                  id={`item-${idx}-qty`}
+                  inputMode="decimal"
+                  value={it.quantity}
+                  onChange={(e) => setItem(idx, "quantity", e.target.value)}
+                  onKeyDown={blockEnter}
+                  enterKeyHint="next"
+                />
+              </div>
+              <div>
+                <label className="mini-label" htmlFor={`item-${idx}-price`}>Preço un.</label>
+                <input
+                  id={`item-${idx}-price`}
+                  inputMode="decimal"
+                  value={it.unitPrice}
+                  onChange={(e) => setItem(idx, "unitPrice", e.target.value)}
+                  onKeyDown={blockEnter}
+                  enterKeyHint="next"
+                />
+              </div>
+              <div className="line-sub">
+                <label className="mini-label">Subtotal</label>
+                <div className="line-sub-val">{formatBRL(lineTotal(it))}</div>
+              </div>
+            </div>
+            <button type="button" className="link-btn danger" onClick={() => removeItem(idx)}>
+              Remover peça
+            </button>
+          </div>
+        ))}
+        <button type="button" className="btn-secondary btn-block" onClick={addItem}>
+          + Adicionar peça
+        </button>
 
-      <div className="field">
-        <label>Observação</label>
-        <textarea
-          value={form.observation}
-          onChange={(e) => setField("observation", e.target.value)}
-          placeholder="Observações do atendimento"
-        />
-      </div>
+        <div className="section-title">Serviços</div>
+        {form.services.map((sv, idx) => (
+          <div className="line-card" key={idx}>
+            <input
+              aria-label={`Descrição do serviço ${idx + 1}`}
+              placeholder="Descrição do serviço"
+              value={sv.description}
+              onChange={(e) => setService(idx, "description", e.target.value)}
+              onKeyDown={blockEnter}
+              enterKeyHint="next"
+            />
+            <div className="line-grid">
+              <div>
+                <label className="mini-label" htmlFor={`service-${idx}-price`}>Preço</label>
+                <input
+                  id={`service-${idx}-price`}
+                  inputMode="decimal"
+                  value={sv.price}
+                  onChange={(e) => setService(idx, "price", e.target.value)}
+                  onKeyDown={blockEnter}
+                  enterKeyHint="next"
+                />
+              </div>
+            </div>
+            <button type="button" className="link-btn danger" onClick={() => removeService(idx)}>
+              Remover serviço
+            </button>
+          </div>
+        ))}
+        <button type="button" className="btn-secondary btn-block" onClick={addService}>
+          + Adicionar serviço
+        </button>
 
-      <div className="total-row">
-        <span>Total</span>
-        <strong>{formatBRL(total)}</strong>
-      </div>
+        <div className="field mt-24">
+          <label htmlFor="doc-discount">Desconto (R$)</label>
+          <input
+            id="doc-discount"
+            inputMode="decimal"
+            value={form.discount}
+            onChange={(e) => setField("discount", e.target.value)}
+            placeholder="0"
+            enterKeyHint="next"
+          />
+        </div>
 
-      <button className="btn-primary btn-block" onClick={handleSubmit} disabled={saving}>
-        {saving ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Criar atendimento"}
-      </button>
+        <div className="field">
+          <label htmlFor="doc-valid">Validade</label>
+          <input
+            id="doc-valid"
+            type="date"
+            value={form.validUntil}
+            onChange={(e) => setField("validUntil", e.target.value)}
+          />
+          <div className="hint">Opcional</div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="doc-obs">Observação</label>
+          <textarea
+            id="doc-obs"
+            value={form.observation}
+            onChange={(e) => setField("observation", e.target.value)}
+            placeholder="Observações do atendimento"
+          />
+        </div>
+
+        <div className="total-row">
+          <span>Total</span>
+          <strong>{formatBRL(total)}</strong>
+        </div>
+
+        <button className="btn-primary btn-block" type="submit" disabled={saving}>
+          {saving ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Criar atendimento"}
+        </button>
+      </form>
     </div>
   );
 }
