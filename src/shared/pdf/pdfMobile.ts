@@ -6,6 +6,7 @@
 
 import { loadPdfData } from "./pdf";
 import { buildDocumentHtml } from "./template";
+import { captureError } from "../monitoring/monitoring";
 
 // CDN (import dinâmico): como a URL vem de variável, o TS trata como any (sem resolver módulo)
 // e o Vite (@vite-ignore) deixa o browser buscar o ESM em runtime.
@@ -62,6 +63,7 @@ export async function buildDocumentPdfBlob(documentId: string): Promise<PdfBlobR
     return { blob, filename, error: null };
   } catch (e) {
     console.error("[pdfMobile] geração do blob falhou:", e);
+    captureError(e, { where: "buildDocumentPdfBlob", documentId });
     return { blob: null, filename, error: "Não foi possível gerar o PDF. Tente 'Abrir' como alternativa." };
   }
 }

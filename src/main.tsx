@@ -2,7 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { SessionProvider } from "./shared/auth/SessionProvider";
+import { initMonitoring, captureError } from "./shared/monitoring/monitoring";
 import "./index.css";
+
+// Monitoramento de erros (Sentry opcional via CDN; inerte sem VITE_SENTRY_DSN).
+initMonitoring();
 
 // Error Boundary global: sem isto, qualquer exceção no render desmonta a árvore inteira
 // e mostra uma tela branca sem mensagem (sintoma relatado no iOS). Agora o erro real
@@ -18,6 +22,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, EBSta
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[AS OS] erro de render:", error, info.componentStack);
+    captureError(error, { componentStack: info.componentStack ?? "" });
     this.setState({ stack: info.componentStack ?? null });
   }
 
@@ -60,6 +65,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, EBSta
 // Loga rejeições de Promise não tratadas (úteis no console do device via inspetor).
 window.addEventListener("unhandledrejection", (e) => {
   console.error("[AS OS] promise rejeitada:", e.reason);
+  captureError(e.reason, { kind: "unhandledrejection" });
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

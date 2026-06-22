@@ -3,20 +3,32 @@
 // Só apresentação: dados de shared/admin (admin_metrics).
 
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
-import { getMetrics, runBillingCycle, formatBRL, type AdminMetrics } from "../../../shared/admin/admin";
+import {
+  getMetrics,
+  listTenants,
+  runBillingCycle,
+  formatBRL,
+  statusLabel,
+  type AdminMetrics,
+  type AdminTenantRow,
+} from "../../../shared/admin/admin";
 
 export function AdminFinanceScreen() {
+  const navigate = useNavigate();
   const [m, setM] = useState<AdminMetrics | null>(null);
+  const [tenants, setTenants] = useState<AdminTenantRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [ran, setRan] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await getMetrics();
-    setM(data);
-    setError(error);
+    const [mt, ts] = await Promise.all([getMetrics(), listTenants()]);
+    setM(mt.data);
+    setTenants(ts.data);
+    setError(mt.error ?? ts.error);
     setLoading(false);
   }, []);
 
@@ -71,6 +83,46 @@ export function AdminFinanceScreen() {
             <Card label="Receita anual" value={formatBRL(m.annual)} tone="brand" />
           </div>
 
+          <div className="section-title">Trials próximos do vencimento</div>
+          {trialsExpiring(tenants).length === 0 ? (
+            <div className="hint">Nenhum trial vencendo nos próximos 7 dias.</div>
+          ) : (
+            <div className="admin-list">
+              {trialsExpiring(tenants).map((t) => (
+                <button key={t.tenant_id} className="admin-row" onClick={() => navigate(`/admin/empresas/${t.tenant_id}`)} style={{ textAlign: "left" }}>
+                  <div className="admin-row-main">
+                    <div className="admin-row-top">
+                      <span className="admin-row-name">{t.name}</span>
+                      <span className={`status-pill status-${t.status}`}>
+                        {t.days_left != null && t.days_left < 0 ? `Vencido há ${-t.days_left}d` : `${t.days_left}d`}
+                      </span>
+                    </div>
+                    <div className="admin-row-sub">{t.plan_label} · {t.owner_email ?? "—"}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="section-title">Últimos cadastros</div>
+          {tenants.length === 0 ? (
+            <div className="hint">Nenhuma empresa.</div>
+          ) : (
+            <div className="admin-list">
+              {tenants.slice(0, 5).map((t) => (
+                <button key={t.tenant_id} className="admin-row" onClick={() => navigate(`/admin/empresas/${t.tenant_id}`)} style={{ textAlign: "left" }}>
+                  <div className="admin-row-main">
+                    <div className="admin-row-top">
+                      <span className="admin-row-name">{t.name}</span>
+                      <span className={`status-pill status-${t.status}`}>{statusLabel(t.status)}</span>
+                    </div>
+                    <div className="admin-row-sub">{t.owner_email ?? "—"} · {fmtDate(t.created_at)}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="section-title">Visão geral</div>
           <div className="detail-card">
             <Row label="Total de empresas" value={String(m.companies_total)} />
@@ -86,6 +138,17 @@ export function AdminFinanceScreen() {
       ) : null}
     </AdminLayout>
   );
+}
+
+// trials/contas com vencimento nos próximos 7 dias (ou já vencido), mais urgente primeiro
+function trialsExpiring(tenants: AdminTenantRow[]): AdminTenantRow[] {
+  return tenants
+    .filter((t) => (t.status === "trial" || t.status === "active") && t.days_left != null && t.days_left <= 7)
+    .sort((a, b) => (a.days_left ?? 0) - (b.days_left ?? 0));
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
 function Card({ label, value, tone }: { label: string; value: string; tone?: string }) {

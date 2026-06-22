@@ -193,7 +193,7 @@ export function App() {
         />
 
         {/* ---- Painel administrativo AS OS (rota oculta, controlada por papel) ---- */}
-        <Route path="/admin" element={<Navigate to="/admin/empresas" replace />} />
+        <Route path="/admin" element={<Navigate to="/admin/financeiro" replace />} />
         <Route
           path="/admin/empresas"
           element={
