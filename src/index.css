@@ -619,7 +619,12 @@ textarea.field-input { height: auto; min-height: 90px; padding: var(--s3) var(--
 .support-banner-text strong { font-size: 13px; letter-spacing: .6px; }
 .support-banner-text span { font-size: 12px; opacity: .9; }
 .support-exit {
-  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.5); color: #ff
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.5); color: #fff;
+  font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap;
+}
+.support-exit:hover { background: rgba(255,255,255,.28); }
+.support-note { margin-top: var(--s5); }
+
 /* ===================================================================== */
 /* Bottom Navigation (mobile/PWA) — só roteamento; visível em telas ≤768px */
 /* ===================================================================== */
