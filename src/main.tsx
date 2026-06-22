@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import { SessionProvider } from "./shared/auth/SessionProvider";
 import "./index.css";
 
 // Error Boundary global: sem isto, qualquer exceção no render desmonta a árvore inteira
@@ -64,7 +65,9 @@ window.addEventListener("unhandledrejection", (e) => {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <SessionProvider>
+        <App />
+      </SessionProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );
