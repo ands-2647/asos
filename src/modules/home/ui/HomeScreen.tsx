@@ -17,6 +17,7 @@ import {
   type HomeData,
 } from "../../../shared/home/home";
 import { syncNotifications, unreadCount } from "../../../shared/notifications/notifications";
+import { BillingBanner } from "../../account/ui/BillingBanner";
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -82,6 +83,8 @@ export function HomeScreen() {
           </button>
         </div>
       </header>
+
+      <BillingBanner />
 
       {error && <div className="error-box">{error}</div>}
 
