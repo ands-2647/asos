@@ -26,9 +26,14 @@ export function BillingBanner() {
       : `Seu plano vence em ${b.days_left} dia${b.days_left === 1 ? "" : "s"}.`;
 
   return (
-    <div className={`billing-banner ${urgent ? "is-urgent" : ""}`} onClick={() => navigate("/notificacoes")}>
+    <button
+      type="button"
+      className={`billing-banner ${urgent ? "is-urgent" : ""}`}
+      onClick={() => navigate("/notificacoes")}
+      aria-label={`${msg} Ver avisos.`}
+    >
       <span className="billing-banner-dot" aria-hidden />
       <span className="billing-banner-text">{msg} Toque para ver os avisos.</span>
-    </div>
+    </button>
   );
 }

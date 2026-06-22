@@ -32,6 +32,7 @@ import { AdminFinanceScreen } from "./modules/admin/ui/AdminFinanceScreen";
 import { AdminInvoicesScreen } from "./modules/admin/ui/AdminInvoicesScreen";
 import { AdminAuditScreen } from "./modules/admin/ui/AdminAuditScreen";
 import { AdminForbidden } from "./modules/admin/ui/AdminForbidden";
+import { BottomNav } from "./modules/common/ui/BottomNav";
 
 function Loading() {
   return <div className="loading-screen">Carregando…</div>;
@@ -244,6 +245,7 @@ export function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <BottomNav />
     </BrowserRouter>
   );
 }
