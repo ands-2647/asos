@@ -145,33 +145,43 @@ async function htmlToPdfBlob(html: string): Promise<Blob> {
     // aguarda render + carregamento de imagens (logo embutida como data URL)
     await new Promise<void>((res) => setTimeout(res, 400));
 
-    const canvas = await html2canvas(doc.body, {
+    // captura o bloco de conteúdo (.page) — altura exata, sem o "vazio" do body que
+    // criava uma 2ª página em branco.
+    const target = (doc.querySelector(".page") as HTMLElement) || doc.body;
+    const canvas = await html2canvas(target, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
-      windowWidth: 794,
     });
 
     const pdf = new JsPDF("p", "mm", "a4");
-    const pageW = 210;
-    const pageH = 297;
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const imgData = canvas.toDataURL("image/jpeg", 0.92);
+    // margens A4 (alinhadas ao @page do template): 14mm laterais, 16mm topo/base
+    const marginX = 14;
+    const marginY = 16;
+    const contentW = 210 - marginX * 2; // 182mm
+    const contentH = 297 - marginY * 2; // 265mm
+    const pxPerMm = canvas.width / contentW;
+    const pageHpx = contentH * pxPerMm;
 
-    if (imgH <= pageH) {
-      pdf.addImage(imgData, "JPEG", 0, 0, imgW, imgH);
-    } else {
-      let pos = 0;
-      let remaining = imgH;
-      while (remaining > 0) {
-        pdf.addImage(imgData, "JPEG", 0, pos, imgW, imgH);
-        remaining -= pageH;
-        if (remaining > 0) {
-          pdf.addPage();
-          pos -= pageH;
-        }
-      }
+    // nº de páginas reais (tolerância de 2px evita uma página por causa de arredondamento)
+    const totalPages = Math.max(1, Math.ceil((canvas.height - 2) / pageHpx));
+
+    for (let i = 0; i < totalPages; i++) {
+      const sy = i * pageHpx;
+      const sliceHpx = Math.min(pageHpx, canvas.height - sy);
+      if (sliceHpx <= 2) break; // nada relevante restante → não cria página em branco
+
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width;
+      slice.height = sliceHpx;
+      const ctx = slice.getContext("2d");
+      if (!ctx) throw new Error("canvas 2d indisponível");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, sy, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
+
+      if (i > 0) pdf.addPage();
+      pdf.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", marginX, marginY, contentW, sliceHpx / pxPerMm);
     }
     return pdf.output("blob") as Blob;
   } finally {
