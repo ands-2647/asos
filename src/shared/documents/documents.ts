@@ -340,9 +340,29 @@ function clientNameOf(clients: any): string | null {
   return clients.name ?? null;
 }
 
+// Converte texto digitado em número entendendo o padrão brasileiro de moeda.
+// Aceita: "1000", "1.000", "1.000,00", "1000,00", "10,50", "10.50", "-10", "0".
 function toNumber(v: string): number {
-  const n = Number(String(v).replace(",", ".").trim());
-  return Number.isFinite(n) ? n : 0;
+  let s = String(v ?? "").trim();
+  if (s === "") return 0;
+  const negative = s.startsWith("-");
+  s = s.replace(/[^\d.,]/g, ""); // mantém só dígitos, ponto e vírgula
+  if (s === "") return 0;
+  const dots = (s.match(/\./g) || []).length;
+  if (s.includes(",")) {
+    // vírgula = decimal; pontos = milhar -> "1.000,00" => "1000.00"
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (dots > 1) {
+    // vários pontos = milhar -> "1.000.000" => "1000000"
+    s = s.replace(/\./g, "");
+  } else if (dots === 1) {
+    // um ponto com exatamente 3 dígitos após = milhar ("1.000"); senão é decimal ("10.50")
+    const after = s.split(".")[1] ?? "";
+    if (after.length === 3) s = s.replace(/\./g, "");
+  }
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return negative ? -n : n;
 }
 
 function round2(n: number): number {

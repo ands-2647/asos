@@ -110,8 +110,10 @@ export async function uploadLogo(
   file: File,
   previousPath: string | null
 ): Promise<{ url: string | null; error: string | null }> {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return { url: null, error: "Formato não suportado. Use JPG, PNG ou WEBP." };
+  // Aceita qualquer imagem: a compressão (canvas) reencoda para WEBP/JPEG antes do upload,
+  // então fotos do iPhone (HEIC) também passam quando o navegador consegue decodificá-las.
+  if (file.type && !file.type.startsWith("image/")) {
+    return { url: null, error: "Selecione um arquivo de imagem (JPG, PNG, WEBP ou foto do celular)." };
   }
   const { tenantId, error: tErr } = await currentTenantId();
   if (tErr || !tenantId) return { url: null, error: tErr ?? "Tenant não encontrado." };
@@ -126,7 +128,7 @@ export async function uploadLogo(
     type = out.type;
   } catch (e) {
     console.error("[settings] compress", e);
-    return { url: null, error: "Não foi possível processar a imagem." };
+    return { url: null, error: "Não foi possível processar esta imagem. Tente uma foto JPG ou PNG." };
   }
 
   const path = `${tenantId}/logo/${cryptoRandom()}.${ext}`;

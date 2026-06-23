@@ -78,16 +78,19 @@ export async function completeOnboarding(
     .from("tenants")
     .select("id")
     .single();
-  if (tErr || !tenant) return { error: friendly(tErr?.message) };
+  if (tErr || !tenant) return { error: describeError(tErr) };
 
   const tenantId = tenant.id as string;
 
-  // tenants: nome e ramo de atividade
+  // tenants: nome e ramo de atividade.
+  // O ramo vem como rótulo em PT (ex.: "Oficina mecânica") da tela, mas a coluna
+  // tenants.vertical só aceita os macro-segmentos do banco (ADR 0018). Mapeamos aqui
+  // para um valor válido da constraint tenants_vertical_check; vazio continua null.
   const { error: upTenant } = await supabase
     .from("tenants")
-    .update({ name: p.name.trim(), vertical: emptyToNull(p.vertical) })
+    .update({ name: p.name.trim(), vertical: mapVertical(p.vertical) })
     .eq("id", tenantId);
-  if (upTenant) return { error: friendly(upTenant.message) };
+  if (upTenant) return { error: describeError(upTenant) };
 
   // tenant_settings: contato, cobrança, padrões + marca de conclusão
   const { error: upSettings } = await supabase
@@ -103,7 +106,7 @@ export async function completeOnboarding(
       onboarded_at: new Date().toISOString(),
     })
     .eq("tenant_id", tenantId);
-  if (upSettings) return { error: friendly(upSettings.message) };
+  if (upSettings) return { error: describeError(upSettings) };
 
   return { error: null };
 }
@@ -132,5 +135,31 @@ function parseIntOrNull(v: string): number | null {
 
 function friendly(msg?: string): string {
   if (msg) console.error("[onboarding]", msg);
+  return "Não foi possível salvar agora. Verifique a conexão e tente de novo.";
+}
+
+// Valores aceitos pela constraint tenants_vertical_check (não alteramos o banco).
+const VALID_VERTICALS = ["automotive_services", "technical_assistance"];
+
+// Converte o rótulo do campo "Ramo de atividade" para um valor válido da constraint.
+// - vazio -> null (mantém o comportamento atual)
+// - valor já válido -> passa direto
+// - qualquer rótulo do nicho (todos os oferecidos na tela são automotivos) -> automotive_services
+function mapVertical(label: string): string | null {
+  const t = (label ?? "").trim();
+  if (t === "") return null;
+  if (VALID_VERTICALS.includes(t)) return t;
+  return "automotive_services";
+}
+
+// Mensagem de erro específica: separa falha de VALIDAÇÃO do banco (constraint) de falha
+// de CONEXÃO. Antes, todo erro virava "Verifique a conexão" — o que era enganoso.
+function describeError(err?: { code?: string; message?: string; details?: string } | null): string {
+  if (err) console.error("[onboarding]", err.code, err.message, err.details);
+  const code = err?.code ?? "";
+  const msg = err?.message ?? "";
+  if (code.startsWith("23") || /constraint|violates|invalid input|check/i.test(msg)) {
+    return "Não foi possível concluir: confira os dados informados e tente de novo.";
+  }
   return "Não foi possível salvar agora. Verifique a conexão e tente de novo.";
 }

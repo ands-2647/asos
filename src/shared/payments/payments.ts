@@ -125,6 +125,14 @@ export async function addPayment(
   if (!input.paidOn) return { error: "Informe a data do pagamento." };
   if (!input.method) return { error: "Selecione o método de pagamento." };
 
+  // Não permitir receber acima do saldo em aberto (evita financeiro inconsistente).
+  const { data: sum } = await getFinancialSummary(documentId);
+  if (sum && amount > sum.balance + 0.005) {
+    return {
+      error: `O valor é maior que o saldo em aberto (${formatBRL(sum.balance)}).`,
+    };
+  }
+
   const { tenantId, error: tErr } = await currentTenantId();
   if (tErr || !tenantId) return { error: tErr ?? "Tenant não encontrado." };
 
@@ -154,10 +162,29 @@ async function currentTenantId(): Promise<{ tenantId: string | null; error: stri
   return { tenantId: data.id as string, error: null };
 }
 
+// Padrão brasileiro de moeda: "1000", "1.000", "1.000,00", "1000,00", "10,50", "10.50".
 function toNumber(v: string): number {
-  const n = Number(String(v).replace(",", ".").trim());
-  return Number.isFinite(n) ? n : 0;
+  let s = String(v ?? "").trim();
+  if (s === "") return 0;
+  const negative = s.startsWith("-");
+  s = s.replace(/[^\d.,]/g, "");
+  if (s === "") return 0;
+  const dots = (s.match(/\./g) || []).length;
+  if (s.includes(",")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (dots > 1) {
+    s = s.replace(/\./g, "");
+  } else if (dots === 1) {
+    const after = s.split(".")[1] ?? "";
+    if (after.length === 3) s = s.replace(/\./g, "");
+  }
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return negative ? -n : n;
 }
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+function formatBRL(value: number): string {
+  return Number(value ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
