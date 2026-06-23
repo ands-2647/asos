@@ -18,6 +18,7 @@ import {
   type WorkStatus,
 } from "./domain/status";
 import { shouldAssignNumber } from "./domain/numbering";
+import { chargeOpenBalance } from "../charges/charges";
 
 export type StatusInfo = {
   kind: DocumentKind;
@@ -89,6 +90,13 @@ export async function applyTransition(
   if (upErr) {
     console.error("[transitions] update", upErr.message);
     return { error: "Não foi possível atualizar o status. Tente de novo." };
+  }
+
+  // Ao APROVAR um orçamento, gera automaticamente a cobrança do valor em aberto
+  // (vira "a receber" no Financeiro/Dashboard). Best-effort: não derruba a transição.
+  if (kind === "budget" && to === "approved") {
+    const r = await chargeOpenBalance(id);
+    if (r.error) console.error("[transitions] auto-charge", r.error);
   }
 
   return { error: null };

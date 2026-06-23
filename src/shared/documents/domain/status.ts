@@ -31,21 +31,21 @@ export type TransitionAction = {
 
 const TRANSITIONS: Record<DocumentKind, Partial<Record<WorkStatus, TransitionAction[]>>> = {
   budget: {
-    draft: [{ action: "efetivar", to: "waiting", label: "Efetivar orçamento", intent: "primary" }],
+    draft: [{ action: "efetivar", to: "waiting", label: "Finalizar orçamento", intent: "primary" }],
     waiting: [
-      { action: "aprovar", to: "approved", label: "Aprovar", intent: "primary" },
-      { action: "reprovar", to: "reproved", label: "Reprovar", intent: "danger" },
+      { action: "aprovar", to: "approved", label: "Aprovar orçamento", intent: "primary" },
+      { action: "reprovar", to: "reproved", label: "Recusar", intent: "danger" },
     ],
     approved: [],
     reproved: [],
   },
   service_order: {
-    draft: [{ action: "iniciar", to: "in_progress", label: "Iniciar execução", intent: "primary" }],
+    draft: [{ action: "iniciar", to: "in_progress", label: "Iniciar serviço", intent: "primary" }],
     in_progress: [
-      { action: "parcial", to: "partial", label: "Marcar parcial", intent: "secondary" },
-      { action: "concluir", to: "done", label: "Concluir", intent: "primary" },
+      { action: "parcial", to: "partial", label: "Marcar andamento parcial", intent: "secondary" },
+      { action: "concluir", to: "done", label: "Concluir serviço", intent: "primary" },
     ],
-    partial: [{ action: "concluir", to: "done", label: "Concluir", intent: "primary" }],
+    partial: [{ action: "concluir", to: "done", label: "Concluir serviço", intent: "primary" }],
     done: [],
   },
 };
@@ -62,11 +62,11 @@ export function isValidTransition(kind: DocumentKind, from: WorkStatus, to: Work
 
 const WORK_STATUS_LABEL: Record<WorkStatus, string> = {
   draft: "Rascunho",
-  waiting: "Aguardando",
+  waiting: "Aguardando aprovação",
   approved: "Aprovado",
-  reproved: "Reprovado",
+  reproved: "Recusado",
   in_progress: "Em andamento",
-  partial: "Parcial",
+  partial: "Andamento parcial",
   done: "Concluído",
   cancelled: "Cancelado",
 };

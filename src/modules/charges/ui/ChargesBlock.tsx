@@ -1,7 +1,7 @@
 // src/modules/charges/ui/ChargesBlock.tsx
-// Bloco "Cobranças" usado na tela de detalhe do atendimento. Só apresentação:
-// toda a lógica vem de shared/charges. Avisa o pai (onChanged) quando algo muda,
-// para o bloco financeiro/timeline do detalhe se atualizar.
+// Bloco "Cobranças" do detalhe do atendimento. Simplificado: 1 clique para gerar a
+// cobrança do valor em aberto e cobrar pelo WhatsApp (com Pix). A cobrança manual fica
+// recolhida para casos especiais. Só apresentação: lógica em shared/charges + whatsapp.
 
 import { useEffect, useState } from "react";
 import { formatBRL, formatShortDate } from "../../../shared/documents/documents";
@@ -11,9 +11,11 @@ import {
   createCharge,
   settleCharge,
   cancelCharge,
+  chargeOpenBalance,
   chargeStatusLabel,
   type Charge,
 } from "../../../shared/charges/charges";
+import { shareChargeWhatsApp } from "../../../shared/whatsapp/whatsapp";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -30,8 +32,10 @@ export function ChargesBlock({
   const [form, setForm] = useState({ amount: "", dueDate: today(), note: "" });
   const [method, setMethod] = useState("dinheiro");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [showManual, setShowManual] = useState(false);
 
   async function reload() {
     const { data, error } = await listCharges(documentId);
@@ -47,16 +51,32 @@ export function ChargesBlock({
     });
   }, [documentId]);
 
+  async function handleChargeOpen() {
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+    const { error, created } = await chargeOpenBalance(documentId);
+    setBusy(false);
+    if (error) { setError(error); return; }
+    if (!created) { setInfo("Nada em aberto para cobrar (já está pago ou já há cobrança)."); return; }
+    await reload();
+    onChanged?.();
+  }
+
+  async function handleWhats() {
+    setError(null);
+    const { error } = await shareChargeWhatsApp(documentId);
+    if (error) setError(error);
+  }
+
   async function handleCreate() {
     setError(null);
     setBusy(true);
     const { error } = await createCharge(documentId, form);
     setBusy(false);
-    if (error) {
-      setError(error);
-      return;
-    }
+    if (error) { setError(error); return; }
     setForm({ amount: "", dueDate: today(), note: "" });
+    setShowManual(false);
     await reload();
     onChanged?.();
   }
@@ -66,10 +86,7 @@ export function ChargesBlock({
     setBusy(true);
     const { error } = await settleCharge(c, documentId, method);
     setBusy(false);
-    if (error) {
-      setError(error);
-      return;
-    }
+    if (error) { setError(error); return; }
     await reload();
     onChanged?.();
   }
@@ -80,18 +97,28 @@ export function ChargesBlock({
     setBusy(true);
     const { error } = await cancelCharge(c);
     setBusy(false);
-    if (error) {
-      setError(error);
-      return;
-    }
+    if (error) { setError(error); return; }
     await reload();
     onChanged?.();
   }
+
+  const hasPending = charges.some((c) => c.status === "pending");
 
   return (
     <>
       <div className="section-title">Cobranças</div>
       {error && <div className="error-box">{error}</div>}
+      {info && <div className="hint">{info}</div>}
+
+      {/* Ações rápidas */}
+      <div className="btn-row">
+        <button className="btn-primary" disabled={busy} onClick={handleChargeOpen}>
+          {busy ? "Gerando…" : "Gerar cobrança do valor em aberto"}
+        </button>
+        <button className="btn-secondary" onClick={handleWhats}>
+          Cobrar pelo WhatsApp
+        </button>
+      </div>
 
       {!loading && charges.length > 0 && (
         <div className="list">
@@ -111,19 +138,13 @@ export function ChargesBlock({
               </div>
               {c.status === "pending" && (
                 <div className="charge-actions">
-                  <select
-                    className="select select-sm"
-                    value={method}
-                    onChange={(e) => setMethod(e.target.value)}
-                  >
+                  <select className="select select-sm" value={method} onChange={(e) => setMethod(e.target.value)}>
                     {PAYMENT_METHOD_OPTIONS.map((m) => (
-                      <option key={m.label} value={m.value}>
-                        {m.label}
-                      </option>
+                      <option key={m.label} value={m.value}>{m.label}</option>
                     ))}
                   </select>
                   <button className="btn-primary btn-sm" disabled={busy} onClick={() => handleSettle(c)}>
-                    Receber
+                    Marcar recebido
                   </button>
                   <button className="btn-secondary btn-sm" disabled={busy} onClick={() => handleCancel(c)}>
                     Cancelar
@@ -135,36 +156,35 @@ export function ChargesBlock({
         </div>
       )}
 
-      <div className="pay-form">
-        <div className="line-grid">
-          <div>
-            <label className="mini-label">Valor (R$)</label>
-            <input
-              inputMode="decimal"
-              value={form.amount}
-              onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
-              placeholder="0,00"
-            />
+      {/* Cobrança manual (recolhida) */}
+      <button className="link-btn" onClick={() => setShowManual((v) => !v)}>
+        {showManual ? "Fechar cobrança manual" : "+ Cobrança manual (valor/vencimento)"}
+      </button>
+      {showManual && (
+        <div className="pay-form">
+          <div className="line-grid">
+            <div>
+              <label className="mini-label">Valor (R$)</label>
+              <input inputMode="decimal" value={form.amount} onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))} placeholder="0,00" />
+            </div>
+            <div>
+              <label className="mini-label">Vencimento</label>
+              <input type="date" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))} />
+            </div>
           </div>
-          <div>
-            <label className="mini-label">Vencimento</label>
-            <input
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
-            />
-          </div>
+          <label className="mini-label">Observação</label>
+          <input value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} placeholder="Opcional" />
+          <button className="btn-primary btn-block" disabled={busy} onClick={handleCreate}>
+            {busy ? "Processando..." : "Criar cobrança"}
+          </button>
         </div>
-        <label className="mini-label">Observação</label>
-        <input
-          value={form.note}
-          onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
-          placeholder="Opcional"
-        />
-        <button className="btn-primary btn-block" disabled={busy} onClick={handleCreate}>
-          {busy ? "Processando..." : "Criar cobrança"}
-        </button>
-      </div>
+      )}
+
+      {hasPending && (
+        <div className="disc-hint" style={{ marginTop: 8 }}>
+          A cobrança pendente aparece no Financeiro e no Dashboard como “a receber”.
+        </div>
+      )}
     </>
   );
 }

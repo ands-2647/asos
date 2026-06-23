@@ -111,6 +111,34 @@ export async function createCharge(
   return { error: null };
 }
 
+// Cria UMA cobrança do valor em aberto (total - já recebido - já cobrado pendente),
+// com vencimento hoje. Usada automaticamente na APROVAÇÃO do orçamento e no botão
+// "Gerar cobrança do valor em aberto". Não duplica: se já estiver tudo cobrado, não cria.
+export async function chargeOpenBalance(
+  documentId: string
+): Promise<{ error: string | null; created: boolean }> {
+  const { data: doc } = await supabase.from("documents").select("total").eq("id", documentId).single();
+  if (!doc) return { error: "Atendimento não encontrado.", created: false };
+  const total = Number(doc.total ?? 0);
+
+  const { data: pays } = await supabase.from("payments").select("amount").eq("document_id", documentId);
+  const received = (pays ?? []).reduce((a: number, p: any) => a + Number(p.amount ?? 0), 0);
+
+  const { data: pend } = await supabase
+    .from("charges").select("amount").eq("document_id", documentId).eq("status", "pending");
+  const alreadyCharged = (pend ?? []).reduce((a: number, c: any) => a + Number(c.amount ?? 0), 0);
+
+  const open = round2(total - received - alreadyCharged);
+  if (open <= 0.005) return { error: null, created: false };
+
+  const { error } = await createCharge(documentId, {
+    amount: String(open),
+    dueDate: new Date().toISOString().slice(0, 10),
+    note: "Valor a receber",
+  });
+  return { error, created: error == null };
+}
+
 // Recebe a cobrança: registra pagamento normal (dispara recalc_payment_status) e marca 'done'.
 export async function settleCharge(
   charge: Charge,
@@ -199,9 +227,23 @@ function isPast(dateStr: string): boolean {
   const today = new Date().toISOString().slice(0, 10);
   return dateStr < today;
 }
+// Moeda BR: "1000", "1.000", "1.000,00", "1000,00", "10,50".
 function toNumber(v: string): number {
-  const n = Number(String(v).replace(",", ".").trim());
-  return Number.isFinite(n) ? n : 0;
+  let s = String(v ?? "").trim();
+  if (s === "") return 0;
+  const negative = s.startsWith("-");
+  s = s.replace(/[^\d.,]/g, "");
+  if (s === "") return 0;
+  const dots = (s.match(/\./g) || []).length;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (dots > 1) s = s.replace(/\./g, "");
+  else if (dots === 1 && (s.split(".")[1] ?? "").length === 3) s = s.replace(/\./g, "");
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return negative ? -n : n;
+}
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 function emptyToNull(v: string): string | null {
   const t = v.trim();

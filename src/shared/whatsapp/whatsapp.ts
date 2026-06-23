@@ -8,6 +8,7 @@
 import { supabase } from "../supabase";
 import { getDocumentDetail } from "../documents/detail";
 import { kindLabel, formatBRL, formatShortDate } from "../documents/documents";
+import { getFinancialSummary } from "../payments/payments";
 
 export type WhatsAppShare = {
   message: string;
@@ -37,9 +38,9 @@ export async function buildWhatsAppMessage(
     `Valor total: ${formatBRL(doc.total)}`,
   ];
   if (doc.validUntil) lines.push(`Validade: ${formatShortDate(doc.validUntil)}`);
-  if (contact) lines.push(`Em caso de dúvidas: WhatsApp: ${contact}`);
 
-  // kindLabel reaproveitado para consistência caso seja necessário em outros pontos
+  // (A mensagem já é enviada pelo WhatsApp da própria empresa — não repetimos o contato.)
+  void contact;
   void kindLabel;
 
   return {
@@ -56,6 +57,36 @@ export async function shareDocumentWhatsApp(documentId: string): Promise<{ error
   const base = data.clientPhone ? `https://wa.me/${data.clientPhone}` : "https://wa.me/";
   const url = `${base}?text=${encodeURIComponent(data.message)}`;
 
+  const win = window.open(url, "_blank");
+  if (!win) return { error: "Permita pop-ups para abrir o WhatsApp." };
+  return { error: null };
+}
+
+// Cobrança pelo WhatsApp: mensagem de pagamento com o valor em aberto + chave Pix da empresa.
+export async function shareChargeWhatsApp(documentId: string): Promise<{ error: string | null }> {
+  const { data: doc, error } = await getDocumentDetail(documentId);
+  if (error || !doc) return { error: error ?? "Atendimento não encontrado." };
+
+  const { data: tenant } = await supabase.from("tenants").select("name").single();
+  const { data: settings } = await supabase.from("tenant_settings").select("pix_key").single();
+  const { data: fin } = await getFinancialSummary(documentId);
+
+  const company = tenant?.name?.trim() || "nossa empresa";
+  const tipo = doc.kind === "budget" ? "orçamento" : "ordem de serviço";
+  const numero = doc.number != null ? ` nº ${doc.number}` : "";
+  const valor = fin && fin.balance > 0 ? fin.balance : doc.total;
+
+  const lines: string[] = [
+    doc.clientName ? `Olá ${doc.clientName}!` : "Olá!",
+    `Segue a cobrança do seu ${tipo}${numero} (${company}).`,
+    `Valor a pagar: ${formatBRL(valor)}`,
+  ];
+  if (settings?.pix_key) lines.push(`Chave Pix: ${settings.pix_key}`);
+  lines.push("Assim que efetuar o pagamento, é só avisar. Obrigado!");
+
+  const phone = normalizePhone(doc.clientPhone);
+  const base = phone ? `https://wa.me/${phone}` : "https://wa.me/";
+  const url = `${base}?text=${encodeURIComponent(lines.join("\n"))}`;
   const win = window.open(url, "_blank");
   if (!win) return { error: "Permita pop-ups para abrir o WhatsApp." };
   return { error: null };
