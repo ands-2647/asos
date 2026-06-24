@@ -68,7 +68,7 @@ export async function shareChargeWhatsApp(documentId: string): Promise<{ error: 
   if (error || !doc) return { error: error ?? "Atendimento não encontrado." };
 
   const { data: tenant } = await supabase.from("tenants").select("name").single();
-  const { data: settings } = await supabase.from("tenant_settings").select("pix_key").single();
+  const { data: settings } = await supabase.from("tenant_settings").select("pix_key, pix_owner_name, pix_bank").single();
   const { data: fin } = await getFinancialSummary(documentId);
 
   const company = tenant?.name?.trim() || "nossa empresa";
@@ -82,6 +82,9 @@ export async function shareChargeWhatsApp(documentId: string): Promise<{ error: 
     `Valor a pagar: ${formatBRL(valor)}`,
   ];
   if (settings?.pix_key) lines.push(`Chave Pix: ${settings.pix_key}`);
+  if (settings?.pix_owner_name) {
+    lines.push(`Favorecido: ${settings.pix_owner_name}${settings.pix_bank ? ` · ${settings.pix_bank}` : ""}`);
+  }
   lines.push("Assim que efetuar o pagamento, é só avisar. Obrigado!");
 
   const phone = normalizePhone(doc.clientPhone);

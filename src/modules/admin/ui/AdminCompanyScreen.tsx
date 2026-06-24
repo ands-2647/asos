@@ -10,6 +10,7 @@ import {
   updateCompany,
   setPlan,
   setTenantStatus,
+  chargeTenantWhatsApp,
   statusLabel,
   formatBRL,
   PLAN_LABELS,
@@ -132,6 +133,15 @@ export function AdminCompanyScreen() {
         )}
         <button className="btn-mini btn-mini-brand" onClick={() => navigate(`/admin/empresas/${tenantId}/suporte`)}>
           Entrar como cliente
+        </button>
+        <button
+          className="btn-mini"
+          onClick={async () => {
+            const { error } = await chargeTenantWhatsApp(tenantId);
+            if (error) setError(error);
+          }}
+        >
+          Cobrar mensalidade (WhatsApp)
         </button>
       </div>
 

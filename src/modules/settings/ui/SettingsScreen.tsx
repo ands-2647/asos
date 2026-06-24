@@ -19,6 +19,8 @@ const emptyForm: CompanyInput = {
   whatsapp: "",
   address: "",
   pixKey: "",
+  pixOwnerName: "",
+  pixBank: "",
   defaultValidityDays: "",
   defaultObservation: "",
 };
@@ -54,6 +56,8 @@ export function SettingsScreen() {
           whatsapp: data.whatsapp,
           address: data.address,
           pixKey: data.pixKey,
+          pixOwnerName: data.pixOwnerName,
+          pixBank: data.pixBank,
           defaultValidityDays: data.defaultValidityDays,
           defaultObservation: data.defaultObservation,
         });
@@ -191,6 +195,16 @@ export function SettingsScreen() {
         <div className="field">
           <label htmlFor="set-pix">Chave Pix</label>
           <input id="set-pix" value={form.pixKey} onChange={(e) => set("pixKey", e.target.value)} placeholder="CPF, CNPJ, e-mail, telefone ou aleatória" enterKeyHint="next" />
+        </div>
+        <div className="field">
+          <label htmlFor="set-pixowner">Favorecido (nome do Pix)</label>
+          <input id="set-pixowner" value={form.pixOwnerName} onChange={(e) => set("pixOwnerName", e.target.value)} placeholder="Nome de quem recebe" autoCapitalize="words" enterKeyHint="next" />
+          <div className="hint">Aparece na cobrança pelo WhatsApp. Opcional.</div>
+        </div>
+        <div className="field">
+          <label htmlFor="set-pixbank">Banco (abreviado)</label>
+          <input id="set-pixbank" value={form.pixBank} onChange={(e) => set("pixBank", e.target.value)} placeholder="Ex.: Bradesco, Nubank, Itaú" enterKeyHint="next" />
+          <div className="hint">Opcional.</div>
         </div>
         <div className="field">
           <label htmlFor="set-validity">Validade padrão do orçamento (dias)</label>

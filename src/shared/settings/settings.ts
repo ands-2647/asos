@@ -19,6 +19,8 @@ export type CompanySettings = {
   whatsapp: string;
   address: string;
   pixKey: string;
+  pixOwnerName: string;
+  pixBank: string;
   defaultValidityDays: string;
   defaultObservation: string;
   logoPath: string | null; // tenant_settings.logo_url (caminho no Storage)
@@ -32,6 +34,8 @@ export type CompanyInput = {
   whatsapp: string;
   address: string;
   pixKey: string;
+  pixOwnerName: string;
+  pixBank: string;
   defaultValidityDays: string;
   defaultObservation: string;
 };
@@ -47,7 +51,7 @@ export async function loadCompanySettings(): Promise<{
   }
   const { data: s, error: sErr } = await supabase
     .from("tenant_settings")
-    .select("cnpj, phone, whatsapp, address, pix_key, default_validity_days, default_observation, logo_url")
+    .select("cnpj, phone, whatsapp, address, pix_key, pix_owner_name, pix_bank, default_validity_days, default_observation, logo_url")
     .single();
   if (sErr) {
     console.error("[settings] settings", sErr.message);
@@ -63,6 +67,8 @@ export async function loadCompanySettings(): Promise<{
       whatsapp: s?.whatsapp ?? "",
       address: s?.address ?? "",
       pixKey: s?.pix_key ?? "",
+      pixOwnerName: s?.pix_owner_name ?? "",
+      pixBank: s?.pix_bank ?? "",
       defaultValidityDays:
         s?.default_validity_days != null ? String(s.default_validity_days) : "",
       defaultObservation: s?.default_observation ?? "",
@@ -93,6 +99,8 @@ export async function saveCompanySettings(input: CompanyInput): Promise<{ error:
       whatsapp: emptyToNull(input.whatsapp),
       address: emptyToNull(input.address),
       pix_key: emptyToNull(input.pixKey),
+      pix_owner_name: emptyToNull(input.pixOwnerName),
+      pix_bank: emptyToNull(input.pixBank),
       default_validity_days: parseIntOrNull(input.defaultValidityDays),
       default_observation: emptyToNull(input.defaultObservation),
     })

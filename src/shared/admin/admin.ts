@@ -297,3 +297,41 @@ export const PLAN_LABELS: Record<PlanCode, string> = {
   premium: "Mensal",
   full_access: "Vitalício",
 };
+
+// Chave Pix do AS OS (você recebe a mensalidade aqui).
+const ASOS_PIX = "61992865057";
+const ASOS_PIX_NAME = "Anderson Candido de Sousa";
+const ASOS_PIX_BANK = "Bradesco";
+
+function normalizeBr(raw: string | null): string | null {
+  if (!raw) return null;
+  const d = raw.replace(/\D/g, "");
+  if (d === "") return null;
+  return d.length === 10 || d.length === 11 ? "55" + d : d;
+}
+function fmtDateBr(iso: string | null): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("T")[0].split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// Abre o WhatsApp da EMPRESA com a cobrança da mensalidade do AS OS (valor + Pix).
+export async function chargeTenantWhatsApp(tenantId: string): Promise<{ error: string | null }> {
+  const { data, error } = await getTenant(tenantId);
+  if (error || !data) return { error: error ?? "Empresa não encontrada." };
+  const phone = normalizeBr(data.settings?.whatsapp || data.settings?.phone || null);
+  const t = data.tenant;
+  const lines: string[] = [
+    `Olá ${t.name}!`,
+    `Sua mensalidade do AS OS (${t.plan_label}) é de ${formatBRL(t.plan_amount)}.`,
+  ];
+  if (t.plan_due_on) lines.push(`Vencimento: ${fmtDateBr(t.plan_due_on)}`);
+  if (ASOS_PIX) lines.push(`Pagamento via Pix: ${ASOS_PIX}`);
+  if (ASOS_PIX_NAME) lines.push(`Favorecido: ${ASOS_PIX_NAME}${ASOS_PIX_BANK ? ` · ${ASOS_PIX_BANK}` : ""}`);
+  lines.push("Após o pagamento, é só avisar. Obrigado!");
+  const base = phone ? `https://wa.me/${phone}` : "https://wa.me/";
+  const url = `${base}?text=${encodeURIComponent(lines.join("\n"))}`;
+  const win = window.open(url, "_blank");
+  if (!win) return { error: "Permita pop-ups para abrir o WhatsApp." };
+  return { error: null };
+}

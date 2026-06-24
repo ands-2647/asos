@@ -9,6 +9,7 @@ import {
   setInvoiceStatus,
   createInvoice,
   listTenants,
+  chargeTenantWhatsApp,
   formatBRL,
   PLAN_LABELS,
   type AdminInvoice,
@@ -129,6 +130,9 @@ export function AdminInvoicesScreen() {
                 {r.status === "pago" && (
                   <button className="btn-mini" onClick={() => markStatus(r.id, "pendente")}>Reabrir</button>
                 )}
+                <button className="btn-mini" onClick={async () => { const { error } = await chargeTenantWhatsApp(r.tenant_id); if (error) setError(error); }}>
+                  WhatsApp
+                </button>
               </div>
             </div>
           ))}
